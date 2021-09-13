@@ -2,27 +2,13 @@
 
 module QuickCheck where
 
-import Control.Monad (liftM2, liftM3)
-import qualified Data.List as List
-import Test.QuickCheck
-  ( Arbitrary (..),
-    Gen,
-    OrderedList (..),
-    Property,
-    Testable (..),
-    choose,
-    classify,
-    elements,
-    forAll,
-    frequency,
-    label,
-    oneof,
-    quickCheck,
-    sample,
-    sized,
-    withMaxSuccess,
-    (==>),
-  )
+import           Control.Monad   (liftM2, liftM3)
+import qualified Data.List       as List
+import           Test.QuickCheck (Arbitrary (..), Gen, OrderedList (..),
+                                  Property, Testable (..), choose, classify,
+                                  elements, forAll, frequency, label, oneof,
+                                  quickCheck, sample, sized, withMaxSuccess,
+                                  (==>))
 
 prop_revapp :: [Int] -> [Int] -> Bool
 prop_revapp xs ys = reverse (xs ++ ys) == reverse xs ++ reverse ys
@@ -44,8 +30,8 @@ qsort (x : xs) = qsort lhs ++ [x] ++ qsort rhs
 
 isOrdered :: Ord a => [a] -> Bool
 isOrdered (x : y : zs) = x <= y && isOrdered (y : zs)
-isOrdered [_] = True
-isOrdered [] = True
+isOrdered [_]          = True
+isOrdered []           = True
 
 prop_qsort_isOrdered :: [Int] -> Bool
 prop_qsort_isOrdered xs = isOrdered (qsort xs)
@@ -62,13 +48,13 @@ prop_qsort_nn_min xs =
 
 prop_qsort_nn_max :: [Int] -> Property
 prop_qsort_nn_max xs =
-  undefined
+  not (null xs) ==> last (qsort xs) == maximum xs
 
 prop_qsort_sort :: [Int] -> Bool
 prop_qsort_sort xs = qsort xs == List.sort xs
 
 isDistinct :: Eq a => [a] -> Bool
-isDistinct = undefined
+isDistinct xs = length (List.nub xs) == length xs
 
 prop_qsort_distinct :: [Int] -> Bool
 prop_qsort_distinct = isDistinct . qsort
@@ -116,13 +102,13 @@ genPair :: Gen a -> Gen b -> Gen (a, b)
 genPair = liftM2 (,) -- a generator for pairs
 
 genBool :: Gen Bool
-genBool = undefined
+genBool = elements [True, False]
 
 genTriple :: Gen a -> Gen b -> Gen c -> Gen (a, b, c)
-genTriple = undefined
+genTriple = liftM3 (,,)
 
 genMaybe :: Gen a -> Gen (Maybe a)
-genMaybe ga = undefined
+genMaybe ga = frequency [(1, return Nothing), (9, Just <$> ga)]
 
 genList1 :: (Arbitrary a) => Gen [a]
 genList1 = liftM2 (:) arbitrary genList1
@@ -151,12 +137,18 @@ genList4 = sized gen
           (n, liftM2 (:) arbitrary (gen (n `div` 2)))
         ]
 
-data Tree a = Empty | Branch a (Tree a) (Tree a) deriving (Show)
+data Tree a = Empty | Branch a (Tree a) (Tree a)
+  deriving (Show)
 
 instance Arbitrary a => Arbitrary (Tree a) where
   arbitrary = sized gen
     where
-      gen n = undefined
+      gen n =
+        let gen' = gen (n `div` 2)
+         in frequency
+              [ (1, return Empty),
+                (n, Branch <$> arbitrary <*> gen' <*> gen')
+              ]
 
 genOrdList :: (Arbitrary a, Ord a) => Gen [a]
 genOrdList = fmap List.sort genList3
